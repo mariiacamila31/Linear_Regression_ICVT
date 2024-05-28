@@ -1,0 +1,158 @@
+---
+title: "ICVT - Portfolio Composition"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+
+```{r}
+#Install the necessary packages
+#install.packages('rsconnect')
+#install.packages("shiny")
+#install.packages("ggplot2")
+#install.packages("dplyr")
+#install.packages("plotly")
+```
+
+```{r}
+getwd()
+```
+
+```{r}
+#Load the data
+data <- read.csv("iShares_ICVT_Holdings.csv")
+
+#Display the data
+head(data)
+```
+
+```{r}
+#Check the data structure
+str(data)
+```
+```{r}
+#Get the statistics
+summary(data)
+```
+```{r}
+#Change the data type of the duration
+data$Duration <- as.numeric(data$Duration)
+
+#Create a histogram to depict the data distribution of the bond's duration
+# Create the histogram
+hist(data$Duration, 
+     breaks = 10, # Number of bins
+     col = "skyblue", # Color of the bars
+     border = "blue", # Border color of the bars
+     main = "Bond Duration", # Title of the plot
+     xlab = "Duration Distribution", # Label for the x-axis
+     ylab = "Frequency" # Label for the y-axis
+)
+```
+
+```{r}
+#Create a table with the sector
+sector_counts <- table(data$Sector)
+
+#Convert to a data frame
+sector_df <- as.data.frame(sector_counts)
+
+#Set the column names
+colnames(sector_df) <- c("Sector", "Counts")
+
+#Organize in descending order
+sector_df <- sector_df[order(sector_df$Counts, decreasing = TRUE), ]
+
+#Select the top 10 industries in the ETF
+top_5_industries <- head(sector_df, 5)
+top_5_industries
+
+#Calculate the percentages
+top_5_industries$Percentage <- (top_5_industries$Counts / sum(top_5_industries$Count)*100)
+
+#Create the labels and round to 2 decimal places
+labels <- paste(top_5_industries$Sector, "\n", round(top_5_industries$Percentage, 0), "%", sep = "")
+
+# Create the pie chart
+pie(top_5_industries$Counts, 
+    labels = labels, 
+    main = "Portfolio Composition by Industry", 
+    col = rainbow(length(top_5_industries$Sector)),
+    cex = 0.8,
+    radius = 1,
+    clockwise = TRUE,
+    init.angle = 90)
+```
+
+```{r}
+#Create a table with the location of the companies in the ETF
+location_counts <- table(data$Location)
+
+#Convert to a data frame
+location_df <- as.data.frame(location_counts)
+
+#Set the column names
+colnames(location_df) <- c("Location", "Counts")
+
+#Organize in descending order
+location_df <- location_df[order(location_df$Counts, decreasing = TRUE), ]
+
+#View the data frame
+location_df
+```
+
+
+```{r}
+library(ggplot2)
+#Visualize the location of the investments in the ETF
+ggplot(location_df, aes(x = Location, y = Counts)) +
+  geom_bar(stat = "identity", fill = "blue") +  # Plot bars with actual values and set fill color
+  geom_text(aes(label = Counts), vjust = -0.5, color = "black", size = 3) +  # Add count labels on top of bars
+  labs(x = "Category", y = "Value", title = "Diversity of Countries - ICVT ETF") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+```{r}
+#Display the list of the sectors in the ETF
+sector_df
+```
+
+```{r}
+#Create an interactive R-shiny app to showcase the industries in the ETF
+library(shiny)
+library(ggplot2)
+library(plotly)  
+
+# Create a data frame with the provided dataset
+data <- sector_df
+
+# Order the data frame by Counts in descending order
+data <- data[order(-data$Counts), ]
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Industries - ICVT ETF"),
+  mainPanel(
+    plotlyOutput("plot")
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  
+  # Generate bar plot
+  output$plot <- renderPlotly({
+    p <- ggplot(data, aes(x = reorder(Sector, Counts), y = Counts, fill = Sector, text = paste("Counts:", Counts))) +
+      geom_bar(stat = "identity") +
+      labs(title = "Sector Counts Bar Plot", x = "Sector", y = "Counts") +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    ggplotly(p, tooltip = "text")  # Convert ggplot to plotly and enable tooltips
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+```
+
